@@ -152,9 +152,7 @@ export const getDbClient = (connectionString?: string) => {
         connectionString,
         ssl: {
           rejectUnauthorized: false,
-          ca: fs.readFileSync(
-            `${process.cwd()}/cert/ca-certificate.crt`.toString()
-          ),
+          ca: process.env['CA_CERT'],
         }
       }),
       cursor: Cursor,
