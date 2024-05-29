@@ -44,9 +44,6 @@
     "typescript": "^5.0.2"
   },
   "lint-staged": {
-    "*.ts": [
-      "biome check"
-    ],
     "*.rs": [
       "rustfmt --check"
     ]

@@ -144,6 +144,7 @@ export interface HubTables {
 }
 
 export const getDbClient = (connectionString?: string) => {
+  console.log(process.cwd())
   return new Kysely<HubTables>({
     dialect: new PostgresDialect({
       pool: new Pool({
