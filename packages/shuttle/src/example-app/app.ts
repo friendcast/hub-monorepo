@@ -14,7 +14,7 @@ import {
   MessageState,
 } from "../index"; // If you want to use this as a standalone app, replace this import with "@farcaster/shuttle"
 import { AppDb, migrateToLatest, Tables } from "./db";
-import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Message } from "@farcaster/hub-nodejs";
+import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Message, isReactionAddMessage, isReactionRemoveMessage } from "@farcaster/hub-nodejs";
 import { log } from "./log";
 import { Command } from "@commander-js/extra-typings";
 import { readFileSync } from "fs";
@@ -96,44 +96,105 @@ export class App implements MessageHandler {
       return;
     }
 
-    const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
-
     // Example of how to materialize casts into a separate table. Insert casts into a separate table, and mark them as deleted when removed
     // Note that since we're relying on "state", this can sometimes be invoked twice. e.g. when a CastRemove is merged, this call will be invoked 2 twice:
     // castAdd, operation=delete, state=deleted (the cast that the remove is removing)
     // castRemove, operation=merge, state=deleted (the actual remove message)
-    const isCastMessage = isCastAddMessage(message) || isCastRemoveMessage(message);
     const messageDesc = wasMissed ? `missed message (${operation})` : `message (${operation})`;
-    if (isCastMessage && state === "created") {
-      log.info(`init process: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`)
-      try {
-        await appDB
-          .insertInto("casts")
-          .values({
-            fid: message.data.fid,
-            hash: message.hash,
-            text: message.data.castAddBody?.text || "",
-            timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
-          })
-          .execute();
-      } catch (e) {
-        // todo-rahul: do better error handling here
-        log.error(`Failed to insert cast: ${e}`);
+    const isCastMessage = isCastAddMessage(message) || isCastRemoveMessage(message);
+    if (isCastMessage) {
+      const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
+      log.info(`init cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      if (state === "created") {
+        try {
+          await appDB
+            .insertInto("casts")
+            .values({
+              // message data
+              messageType: message.data.type,
+              fid: message.data.fid,
+              timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+              network: message.data.network,
+              hash: message.hash,
+              hashScheme: message.hashScheme,
+              signature: message.signature,
+              signatureScheme: message.signatureScheme,
+              signer: message.signer,
+              dataBytes: message.dataBytes ? message.dataBytes : null,
+              // cast data below
+              text: message.data.castAddBody?.text || "",
+              embedsDeprecated: message.data.castAddBody?.embedsDeprecated,
+              embeds: message.data.castAddBody?.embeds,
+              mentions: message.data.castAddBody?.mentions,
+              mentionsPositions: message.data.castAddBody?.mentionsPositions,
+              parentUrl: message.data.castAddBody?.parentUrl || "",
+              parentCastId: message.data.castAddBody?.parentCastId,
+            })
+            .execute();
+        } catch (e) {
+          log.error(`Failed to insert cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(e);
+        }
+      } else if (state === "deleted") {
+        try {
+          await appDB
+            .updateTable("casts")
+            .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
+            .where("hash", "=", message.hash)
+            .execute();
+        } catch (e) {
+          log.error(`Failed to delete cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(e);
+        }
       }
-    } else if (isCastMessage && state === "deleted") {
-      log.info(`init process: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`)
-      try {
-        await appDB
-          .updateTable("casts")
-          .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-          .where("hash", "=", message.hash)
-          .execute();
-      } catch (e) {
-        // todo-rahul: do better error handling here
-        log.error(`Failed to delete cast: ${e}`);
-      }
+      log.info(`proc cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
     }
-    log.info(`comp process ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+    const isReactionMessage = isReactionAddMessage(message) || isReactionRemoveMessage(message);
+    if (isReactionMessage) {
+      const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
+      log.info(`init reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      if (state === "created") {
+        try {
+          await appDB
+            .insertInto("reactions")
+            .values({
+              // message data
+              messageType: message.data.type,
+              fid: message.data.fid,
+              timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+              network: message.data.network,
+              hash: message.hash,
+              hashScheme: message.hashScheme,
+              signature: message.signature,
+              signatureScheme: message.signatureScheme,
+              signer: message.signer,
+              dataBytes: message.dataBytes || null,
+              // reactions data below
+              type: message.data.reactionBody?.type,
+              targetCastId: message.data.reactionBody?.targetCastId || "",
+              targetUrl: message.data.reactionBody?.targetUrl || "",
+            })
+            .execute();
+        } catch (e) {
+          log.error(`Failed to insert reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(e);
+        }
+      } else if (state === "deleted") {
+        // todo-rahul: confirm on the logic to remove a reaction
+        try {
+          log.warn("skipping delete reaction atm")
+          // await appDB
+          //   .updateTable("reactions")
+          //   .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
+          //   .where("targetCastId", "=", message.data.reactionBody?.targetCastId)
+          //   .execute();
+        } catch (e) {
+          log.error(`Failed to delete reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(e);
+        }
+      }
+      log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+    }
   }
 
   async start() {

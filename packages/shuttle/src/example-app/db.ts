@@ -4,8 +4,17 @@ import { err, ok, Result } from "neverthrow";
 import path from "path";
 import { promises as fs } from "fs";
 import { fileURLToPath } from "node:url";
+import {
+  // HashScheme,
+  MessageType,
+  ReactionType,
+  // SignatureScheme,
+  // UserDataType,
+  // UserNameType,
+  CastId
+} from "@farcaster/hub-nodejs";
 import { HubTables } from "@farcaster/hub-shuttle";
-import { Fid } from "../shuttle";
+import { Fid, CastIdJson, EmbedJson } from "../shuttle";
 
 const createMigrator = async (db: Kysely<HubTables>, log: Logger) => {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -49,14 +58,49 @@ export type CastRow = {
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
   deletedAt: Date | null;
-  timestamp: Date;
+  messageType: MessageType;
   fid: Fid;
+  timestamp: Date;
+  network: Number;
   hash: Uint8Array;
+  hashScheme: Number;
+  signature: Uint8Array;
+  signatureScheme: Number;
+  signer: Uint8Array;
+  dataBytes: Uint8Array | null;
   text: string;
+  // embedsDeprecated: string[];
+  // embeds: EmbedJson[];
+  // mentions: Number[];
+  // mentionsPositions: Number[];
+  // parentUrl: string;
+  // parentCastId: CastIdJson
 };
+
+// todo-rahul: add fields here
+export type ReactionsRow = {
+  id: Generated<string>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+  deletedAt: Date | null;
+  messageType: MessageType;
+  fid: Fid;
+  timestamp: Date;
+  network: Number;
+  hash: Uint8Array;
+  hashScheme: Number;
+  signature: Uint8Array;
+  signatureScheme: Number;
+  signer: Uint8Array;
+  dataBytes: Uint8Array | null;
+  type: ReactionType,
+  targetCastId: CastIdJson
+  targetUrl: string
+}
 
 export interface Tables extends HubTables {
   casts: CastRow;
+  reactions: ReactionsRow;
 }
 
 export type AppDb = Kysely<Tables>;

@@ -4,7 +4,7 @@ import { Kysely, sql, JSONColumnType } from "kysely";
 export const up = async (db: Kysely<any>) => {
   // Casts -------------------------------------------------------------------------------------
   await db.schema
-    .createTable("casts")
+    .createTable("reactions")
     .addColumn("id", "uuid", (col) => col.defaultTo(sql`generate_ulid()`))
     .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
     .addColumn("updatedAt", "timestamptz", (col) => col.notNull().defaultTo(sql`current_timestamp`))
@@ -21,18 +21,14 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("signer", "bytea", (col) => col.notNull())
     .addColumn("dataBytes", "bytea")
     // cast data
-    .addColumn("text", "text", (col) => col.notNull())
-    .addColumn("embedsDeprecated", sql`text[]`)
-    .addColumn("embeds", sql`text[]`, (col) => col.notNull())
-    .addColumn("mentions", sql`text[]`, (col) => col.notNull())
-    .addColumn("mentionsPositions", sql`integer[]`, (col) => col.notNull())
-    .addColumn("parentUrl", "text", (col) => col.notNull())
-    .addColumn("parentCastId", "json", (col) => col.notNull())
+    .addColumn("type", sql`smallint`, (col) => col.notNull())
+    .addColumn("targetUrl", "text", (col) => col.notNull())
+    .addColumn("targetCastId", "json")
     .execute();
 
   await db.schema
-    .createIndex("casts_fid_timestamp_index")
-    .on("casts")
+    .createIndex("reactions_fid_timestamp_index")
+    .on("reactions")
     .columns(["fid", "timestamp"])
     .where(sql.ref("deleted_at"), "is", null) // Only index active (non-deleted) casts
     .execute();
