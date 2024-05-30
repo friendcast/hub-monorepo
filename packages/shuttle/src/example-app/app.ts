@@ -103,26 +103,37 @@ export class App implements MessageHandler {
     // castAdd, operation=delete, state=deleted (the cast that the remove is removing)
     // castRemove, operation=merge, state=deleted (the actual remove message)
     const isCastMessage = isCastAddMessage(message) || isCastRemoveMessage(message);
-    if (isCastMessage && state === "created") {
-      await appDB
-        .insertInto("casts")
-        .values({
-          fid: message.data.fid,
-          hash: message.hash,
-          text: message.data.castAddBody?.text || "",
-          timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
-        })
-        .execute();
-    } else if (isCastMessage && state === "deleted") {
-      await appDB
-        .updateTable("casts")
-        .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-        .where("hash", "=", message.hash)
-        .execute();
-    }
-
     const messageDesc = wasMissed ? `missed message (${operation})` : `message (${operation})`;
-    log.info(`${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+    if (isCastMessage && state === "created") {
+      log.info(`init process: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`)
+      try {
+        await appDB
+          .insertInto("casts")
+          .values({
+            fid: message.data.fid,
+            hash: message.hash,
+            text: message.data.castAddBody?.text || "",
+            timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+          })
+          .execute();
+      } catch (e) {
+        // todo-rahul: do better error handling here
+        log.error(`Failed to insert cast: ${e}`);
+      }
+    } else if (isCastMessage && state === "deleted") {
+      log.info(`init process: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`)
+      try {
+        await appDB
+          .updateTable("casts")
+          .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
+          .where("hash", "=", message.hash)
+          .execute();
+      } catch (e) {
+        // todo-rahul: do better error handling here
+        log.error(`Failed to delete cast: ${e}`);
+      }
+    }
+    log.info(`comp process ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
   }
 
   async start() {
