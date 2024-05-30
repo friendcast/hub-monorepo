@@ -156,12 +156,12 @@ export const getDbClient = (connectionString?: string) => {
       pool: new Pool({
         max: 10,
         connectionString,
-        // ssl: {
-        //   rejectUnauthorized: false,
-        //   ca: fs.readFileSync(
-        //     `${process.cwd()}/cert/ca-certificate.crt`.toString()
-        //   ),
-        // }
+        ssl: {
+          rejectUnauthorized: false,
+          ca: fs.readFileSync(
+            `${process.cwd()}/cert/ca-certificate.crt`.toString()
+          ),
+        }
       }),
       cursor: Cursor,
     }),
