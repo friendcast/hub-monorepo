@@ -79,8 +79,8 @@ export class MessageProcessor {
               eb("excluded.prunedAt", "is", null).and("messages.prunedAt", "is not", null),
               eb("excluded.revokedAt", "is not", null).and("messages.revokedAt", "is", null),
               eb("excluded.revokedAt", "is", null).and("messages.revokedAt", "is not", null),
-              eb("excluded.fid", "is not", "messages.fid"),
-              eb("excluded.type", "is not", "messages.type"),
+              eb("excluded.fid", "is not", message.data!.fid),
+              eb("excluded.type", "is not", message.data!.type),
               // Add other conditions here if necessary
             ]),
           ),
