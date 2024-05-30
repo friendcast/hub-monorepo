@@ -18,6 +18,7 @@ import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Mess
 import { log } from "./log";
 import { Command } from "@commander-js/extra-typings";
 import { readFileSync } from "fs";
+import { sql } from "kysely";
 import {
   BACKFILL_FIDS,
   CONCURRENCY,
@@ -115,12 +116,12 @@ export class App implements MessageHandler {
               fid: message.data.fid,
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
-              hash: message.hash,
+              hash: bytesToHexString(message.hash)._unsafeUnwrap().toString(),
               hashScheme: message.hashScheme,
-              signature: message.signature,
+              signature: bytesToHexString(message.signature)._unsafeUnwrap().toString(),
               signatureScheme: message.signatureScheme,
-              signer: message.signer,
-              dataBytes: message.dataBytes ? message.dataBytes : null,
+              signer: bytesToHexString(message.signer)._unsafeUnwrap().toString(),
+              dataBytes: message.dataBytes ? bytesToHexString(message.dataBytes)._unsafeUnwrap().toString() : null,
               // cast data below
               text: message.data.castAddBody?.text || "",
               embedsDeprecated: message.data.castAddBody?.embedsDeprecated,
@@ -140,7 +141,7 @@ export class App implements MessageHandler {
           await appDB
             .updateTable("casts")
             .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-            .where("hash", "=", message.hash)
+            .where(sql`hash = ${bytesToHexString(message.hash)._unsafeUnwrap().toString()}::text`)
             .execute();
         } catch (e) {
           log.error(`Failed to delete cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
@@ -163,12 +164,12 @@ export class App implements MessageHandler {
               fid: message.data.fid,
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
-              hash: message.hash,
+              hash: bytesToHexString(message.hash)._unsafeUnwrap().toString(),
               hashScheme: message.hashScheme,
-              signature: message.signature,
+              signature: bytesToHexString(message.signature)._unsafeUnwrap().toString(),
               signatureScheme: message.signatureScheme,
-              signer: message.signer,
-              dataBytes: message.dataBytes || null,
+              signer: bytesToHexString(message.signer)._unsafeUnwrap().toString(),
+              dataBytes: message.dataBytes ? bytesToHexString(message.dataBytes)._unsafeUnwrap().toString() : null,
               // reactions data below
               type: message.data.reactionBody?.type,
               targetCastId: message.data.reactionBody?.targetCastId || "",
@@ -182,12 +183,11 @@ export class App implements MessageHandler {
       } else if (state === "deleted") {
         // todo-rahul: confirm on the logic to remove a reaction
         try {
-          log.warn("skipping delete reaction atm")
-          // await appDB
-          //   .updateTable("reactions")
-          //   .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-          //   .where("targetCastId", "=", message.data.reactionBody?.targetCastId)
-          //   .execute();
+          await appDB
+            .updateTable("reactions")
+            .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
+            .where(sql`hash = ${bytesToHexString(message.hash)._unsafeUnwrap().toString()}::text`)
+            .execute();
         } catch (e) {
           log.error(`Failed to delete reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
           log.error(e);

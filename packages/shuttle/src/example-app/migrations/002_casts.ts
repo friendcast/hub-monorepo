@@ -14,12 +14,12 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("network", sql`smallint`, (col) => col.notNull())
-    .addColumn("hash", "bytea", (col) => col.notNull())
+    .addColumn("hash", "text", (col) => col.notNull())
     .addColumn("hashScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signature", "bytea", (col) => col.notNull())
+    .addColumn("signature", "text", (col) => col.notNull())
     .addColumn("signatureScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signer", "bytea", (col) => col.notNull())
-    .addColumn("dataBytes", "bytea")
+    .addColumn("signer", "text", (col) => col.notNull())
+    .addColumn("dataBytes", "text")
     // cast data
     .addColumn("text", "text", (col) => col.notNull())
     .addColumn("embedsDeprecated", sql`text[]`)
@@ -27,7 +27,11 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("mentions", sql`text[]`, (col) => col.notNull())
     .addColumn("mentionsPositions", sql`integer[]`, (col) => col.notNull())
     .addColumn("parentUrl", "text", (col) => col.notNull())
-    .addColumn("parentCastId", "json", (col) => col.notNull())
+    .addColumn("parentCastId", "json")
+    .addUniqueConstraint("casts_hash_unique", ["hash"])
+    .$call((qb) =>
+      qb.addPrimaryKeyConstraint("casts_pkey", ["id"]).addUniqueConstraint("casts_hash_unique", ["hash"]),
+    )
     .execute();
 
   await db.schema
