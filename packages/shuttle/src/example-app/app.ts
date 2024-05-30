@@ -108,6 +108,9 @@ export class App implements MessageHandler {
       log.info(`init cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
       if (state === "created") {
         try {
+          // todo-rahul: try to get root parent url data here
+          let rootParentHash = null;
+          let rootParentUrl = null;
           await appDB
             .insertInto("casts")
             .values({
@@ -116,20 +119,22 @@ export class App implements MessageHandler {
               fid: message.data.fid,
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
-              hash: bytesToHexString(message.hash)._unsafeUnwrap().toString(),
+              hash: message.hash,
               hashScheme: message.hashScheme,
-              signature: bytesToHexString(message.signature)._unsafeUnwrap().toString(),
+              signature: message.signature,
               signatureScheme: message.signatureScheme,
-              signer: bytesToHexString(message.signer)._unsafeUnwrap().toString(),
-              dataBytes: message.dataBytes ? bytesToHexString(message.dataBytes)._unsafeUnwrap().toString() : null,
+              signer: message.signer,
+              dataBytes: message.dataBytes ? message.dataBytes : null,
               // cast data below
               text: message.data.castAddBody?.text || "",
-              embedsDeprecated: message.data.castAddBody?.embedsDeprecated,
               embeds: message.data.castAddBody?.embeds,
               mentions: message.data.castAddBody?.mentions,
               mentionsPositions: message.data.castAddBody?.mentionsPositions,
               parentUrl: message.data.castAddBody?.parentUrl || "",
-              parentCastId: message.data.castAddBody?.parentCastId,
+              parentFid: message.data.castAddBody?.parentCastId?.fid || null,
+              parentHash: message.data.castAddBody?.parentCastId?.hash || null,
+              rootParentHash,
+              rootParentUrl,
             })
             .execute();
         } catch (e) {
@@ -141,7 +146,7 @@ export class App implements MessageHandler {
           await appDB
             .updateTable("casts")
             .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-            .where(sql`hash = ${bytesToHexString(message.hash)._unsafeUnwrap().toString()}::text`)
+            .where(sql`hash = ${message.hash}`)
             .execute();
         } catch (e) {
           log.error(`Failed to delete cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
@@ -164,16 +169,17 @@ export class App implements MessageHandler {
               fid: message.data.fid,
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
-              hash: bytesToHexString(message.hash)._unsafeUnwrap().toString(),
+              hash: message.hash,
               hashScheme: message.hashScheme,
-              signature: bytesToHexString(message.signature)._unsafeUnwrap().toString(),
+              signature: message.signature,
               signatureScheme: message.signatureScheme,
-              signer: bytesToHexString(message.signer)._unsafeUnwrap().toString(),
-              dataBytes: message.dataBytes ? bytesToHexString(message.dataBytes)._unsafeUnwrap().toString() : null,
+              signer: message.signer,
+              dataBytes: message.dataBytes ? message.dataBytes : null,
               // reactions data below
               type: message.data.reactionBody?.type,
-              targetCastId: message.data.reactionBody?.targetCastId || "",
-              targetUrl: message.data.reactionBody?.targetUrl || "",
+              targetCastFid: message.data.reactionBody?.targetCastId?.fid || null,
+              targetCastHash: message.data.reactionBody?.targetCastId?.hash || null,
+              targetUrl: message.data.reactionBody?.targetUrl || null,
             })
             .execute();
         } catch (e) {
@@ -186,10 +192,11 @@ export class App implements MessageHandler {
           await appDB
             .updateTable("reactions")
             .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
-            .where(sql`hash = ${bytesToHexString(message.hash)._unsafeUnwrap().toString()}::text`)
+            .where(sql`hash = ${message.hash}`)
             .execute();
         } catch (e) {
-          log.error(`Failed to delete reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(`Failed to delete reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()
+            } (type ${message.data?.type})`);
           log.error(e);
         }
       }
@@ -223,7 +230,7 @@ export class App implements MessageHandler {
           await HubEventProcessor.handleMissingMessage(this.db, message, this);
         } else if (prunedInDb || revokedInDb) {
           const messageDesc = prunedInDb ? "pruned" : revokedInDb ? "revoked" : "existing";
-          log.info(`Reconciled ${messageDesc} message ${bytesToHexString(message.hash)._unsafeUnwrap()}`);
+          log.info(`Reconciled ${messageDesc} message ${bytesToHexString(message.hash)._unsafeUnwrap()} `);
         }
       });
     }
@@ -242,7 +249,7 @@ export class App implements MessageHandler {
         log.error("Max fid was undefined");
         throw new Error("Max fid was undefined");
       }
-      log.info(`Queuing up fids upto: ${maxFid}`);
+      log.info(`Queuing up fids upto: ${maxFid} `);
       // create an array of arrays in batches of 100 upto maxFid
       const batchSize = 10;
       const fids = Array.from({ length: Math.ceil(maxFid / batchSize) }, (_, i) => i * batchSize).map((fid) => fid + 1);
@@ -272,24 +279,24 @@ export class App implements MessageHandler {
   async stop() {
     this.hubSubscriber.stop();
     const lastEventId = await this.redis.getLastProcessedEvent(this.hubId);
-    log.info(`Stopped at eventId: ${lastEventId}`);
+    log.info(`Stopped at eventId: ${lastEventId} `);
   }
 }
 
 //If the module is being run directly, start the shuttle
 if (import.meta.url.endsWith(url.pathToFileURL(process.argv[1] || "").toString())) {
   async function start() {
-    log.info(`Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`);
+    log.info(`Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST} `);
     const app = App.create(POSTGRES_URL, REDIS_URL, HUB_HOST, TOTAL_SHARDS, SHARD_INDEX, HUB_SSL);
     log.info("Starting shuttle");
     await app.start();
   }
 
   async function backfill() {
-    log.info(`Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`);
+    log.info(`Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST} `);
     const app = App.create(POSTGRES_URL, REDIS_URL, HUB_HOST, TOTAL_SHARDS, SHARD_INDEX, HUB_SSL);
     const fids = BACKFILL_FIDS ? BACKFILL_FIDS.split(",").map((fid) => parseInt(fid)) : [];
-    log.info(`Backfilling fids: ${fids}`);
+    log.info(`Backfilling fids: ${fids} `);
     const backfillQueue = getQueue(app.redis.client);
     await app.backfillFids(fids, backfillQueue);
 
@@ -300,7 +307,7 @@ if (import.meta.url.endsWith(url.pathToFileURL(process.argv[1] || "").toString()
   }
 
   async function worker() {
-    log.info(`Starting worker connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`);
+    log.info(`Starting worker connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST} `);
     const app = App.create(POSTGRES_URL, REDIS_URL, HUB_HOST, TOTAL_SHARDS, SHARD_INDEX, HUB_SSL);
     const worker = getWorker(app, app.redis.client, log, CONCURRENCY);
     await worker.run();
@@ -308,10 +315,10 @@ if (import.meta.url.endsWith(url.pathToFileURL(process.argv[1] || "").toString()
 
   // for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   //   process.on(signal, async () => {
-  //     log.info(`Received ${signal}. Shutting down...`);
+  //     log.info(`Received ${ signal }. Shutting down...`);
   //     (async () => {
   //       await sleep(10_000);
-  //       log.info(`Shutdown took longer than 10s to complete. Forcibly terminating.`);
+  //       log.info(`Shutdown took longer than 10s to complete.Forcibly terminating.`);
   //       process.exit(1);
   //     })();
   //     await app?.stop();

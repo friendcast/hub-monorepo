@@ -14,16 +14,17 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("network", sql`smallint`, (col) => col.notNull())
-    .addColumn("hash", "text", (col) => col.notNull())
+    .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("hashScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signature", "text", (col) => col.notNull())
+    .addColumn("signature", "bytea", (col) => col.notNull())
     .addColumn("signatureScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signer", "text", (col) => col.notNull())
-    .addColumn("dataBytes", "text")
+    .addColumn("signer", "bytea", (col) => col.notNull())
+    .addColumn("dataBytes", "bytea")
     // cast data
     .addColumn("type", sql`smallint`, (col) => col.notNull())
-    .addColumn("targetUrl", "text", (col) => col.notNull())
-    .addColumn("targetCastId", "json")
+    .addColumn("targetUrl", "text")
+    .addColumn("targetCastFid", "bigint")
+    .addColumn("targetCastHash", "bytea")
     .execute();
 
   await db.schema

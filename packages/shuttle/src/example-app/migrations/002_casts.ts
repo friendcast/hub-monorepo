@@ -14,20 +14,22 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("fid", "bigint", (col) => col.notNull())
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("network", sql`smallint`, (col) => col.notNull())
-    .addColumn("hash", "text", (col) => col.notNull())
+    .addColumn("hash", "bytea", (col) => col.notNull())
     .addColumn("hashScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signature", "text", (col) => col.notNull())
+    .addColumn("signature", "bytea", (col) => col.notNull())
     .addColumn("signatureScheme", sql`smallint`, (col) => col.notNull())
-    .addColumn("signer", "text", (col) => col.notNull())
-    .addColumn("dataBytes", "text")
+    .addColumn("signer", "bytea", (col) => col.notNull())
+    .addColumn("dataBytes", "bytea")
     // cast data
     .addColumn("text", "text", (col) => col.notNull())
-    .addColumn("embedsDeprecated", sql`text[]`)
     .addColumn("embeds", sql`text[]`, (col) => col.notNull())
     .addColumn("mentions", sql`text[]`, (col) => col.notNull())
     .addColumn("mentionsPositions", sql`integer[]`, (col) => col.notNull())
     .addColumn("parentUrl", "text", (col) => col.notNull())
-    .addColumn("parentCastId", "json")
+    .addColumn("parentFid", "bigint")
+    .addColumn("parentHash", "bytea")
+    .addColumn("rootParentHash", "bytea")
+    .addColumn("rootParentUrl", "text")
     .addUniqueConstraint("casts_hash_unique", ["hash"])
     .$call((qb) =>
       qb.addPrimaryKeyConstraint("casts_pkey", ["id"]).addUniqueConstraint("casts_hash_unique", ["hash"]),
@@ -39,5 +41,26 @@ export const up = async (db: Kysely<any>) => {
     .on("casts")
     .columns(["fid", "timestamp"])
     .where(sql.ref("deleted_at"), "is", null) // Only index active (non-deleted) casts
+    .execute();
+
+  await db.schema
+    .createIndex("casts_root_parent_hash_index")
+    .on("casts")
+    .columns(["rootParentHash"])
+    .where("rootParentHash", "is not", null)
+    .execute();
+
+  await db.schema
+    .createIndex("casts_parent_url_index")
+    .on("casts")
+    .columns(["parentUrl"])
+    .where("parentUrl", "is not", null)
+    .execute();
+
+  await db.schema
+    .createIndex("casts_root_parent_url_index")
+    .on("casts")
+    .columns(["rootParentUrl"])
+    .where("rootParentUrl", "is not", null)
     .execute();
 };
