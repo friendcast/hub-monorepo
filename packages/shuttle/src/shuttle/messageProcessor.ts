@@ -63,7 +63,7 @@ export class MessageProcessor {
       .returning(["id"])
       .onConflict((oc) =>
         oc
-          .columns(["hash", "fid", "type"])
+          .constraint("messages_hash_fid_type_unique")
           // In case the signer was changed, make sure to always update it
           .doUpdateSet({
             signatureScheme: message.signatureScheme,
@@ -81,11 +81,20 @@ export class MessageProcessor {
               eb("excluded.revokedAt", "is", null).and("messages.revokedAt", "is not", null),
               eb("excluded.fid", "is not", null).and("messages.fid", "is", null),
               eb("excluded.type", "is not", null).and("messages.type", "is", null),
-              // Add other conditions here if necessary
             ]),
           ),
       )
-      .executeTakeFirst();
+      // todo-rahul: check what should be done when there is a conflict on hash field
+      // .onConflict((oc) =>
+      //   oc
+      //     .constraint("messages_hash_unique")
+      //     .doNothing()
+      // )
+      .executeTakeFirst()
+      .catch(or => {
+        log?.warn(`Failed to store message ${bytesToHex(message.hash)}: ${or.message}`);
+        return false;
+      });
     return !!result;
   }
 }
