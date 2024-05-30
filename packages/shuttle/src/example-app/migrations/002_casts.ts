@@ -25,7 +25,7 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("embeds", sql`text[]`, (col) => col.notNull())
     .addColumn("mentions", sql`text[]`, (col) => col.notNull())
     .addColumn("mentionsPositions", sql`integer[]`, (col) => col.notNull())
-    .addColumn("parentUrl", "text", (col) => col.notNull())
+    .addColumn("parentUrl", "text")
     .addColumn("parentFid", "bigint")
     .addColumn("parentHash", "bytea")
     .addColumn("rootParentHash", "bytea")
