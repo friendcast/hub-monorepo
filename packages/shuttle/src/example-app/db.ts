@@ -69,15 +69,16 @@ export type CastRow = {
   signer: Uint8Array;
   dataBytes: Uint8Array | null;
   text: string;
-  // embedsDeprecated: string[];
-  // embeds: EmbedJson[];
-  // mentions: Number[];
-  // mentionsPositions: Number[];
-  // parentUrl: string;
-  // parentCastId: CastIdJson
+  embeds: EmbedJson[];
+  mentions: Number[];
+  mentionsPositions: Number[];
+  parentUrl: string | null;
+  parentFid: Number | null;
+  parentHash: Uint8Array | null;
+  rootParentHash: Uint8Array | null;
+  rootParentUrl: string | null;
 };
 
-// todo-rahul: add fields here
 export type ReactionsRow = {
   id: Generated<string>;
   createdAt: Generated<Date>;
@@ -94,8 +95,9 @@ export type ReactionsRow = {
   signer: Uint8Array;
   dataBytes: Uint8Array | null;
   type: ReactionType,
-  targetCastId: CastIdJson
-  targetUrl: string
+  targetCastFid: Number | null;
+  targetCastHash: Uint8Array | null;
+  targetUrl: string | null;
 }
 
 export interface Tables extends HubTables {

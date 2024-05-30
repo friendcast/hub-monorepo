@@ -130,7 +130,7 @@ export class App implements MessageHandler {
               embeds: message.data.castAddBody?.embeds,
               mentions: message.data.castAddBody?.mentions,
               mentionsPositions: message.data.castAddBody?.mentionsPositions,
-              parentUrl: message.data.castAddBody?.parentUrl || "",
+              parentUrl: message.data.castAddBody?.parentUrl || null,
               parentFid: message.data.castAddBody?.parentCastId?.fid || null,
               parentHash: message.data.castAddBody?.parentCastId?.hash || null,
               rootParentHash,
