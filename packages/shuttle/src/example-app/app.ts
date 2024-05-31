@@ -14,7 +14,7 @@ import {
   MessageState,
 } from "../index"; // If you want to use this as a standalone app, replace this import with "@farcaster/shuttle"
 import { AppDb, migrateToLatest, Tables } from "./db";
-import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Message, isReactionAddMessage, isReactionRemoveMessage } from "@farcaster/hub-nodejs";
+import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Message, isReactionAddMessage, isReactionRemoveMessage, isLinkAddMessage, isLinkRemoveMessage } from "@farcaster/hub-nodejs";
 import { log } from "./log";
 import { Command } from "@commander-js/extra-typings";
 import { readFileSync } from "fs";
@@ -104,6 +104,8 @@ export class App implements MessageHandler {
     // castRemove, operation=merge, state=deleted (the actual remove message)
     const messageDesc = wasMissed ? `missed message (${operation})` : `message (${operation})`;
     const isCastMessage = isCastAddMessage(message) || isCastRemoveMessage(message);
+    const isLinkMessage = isLinkAddMessage(message) || isLinkRemoveMessage(message);
+    const isReactionMessage = isReactionAddMessage(message) || isReactionRemoveMessage(message);
     if (isCastMessage) {
       const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
       log.info(`init cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
@@ -158,9 +160,7 @@ export class App implements MessageHandler {
         }
       }
       log.info(`proc cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
-    }
-    const isReactionMessage = isReactionAddMessage(message) || isReactionRemoveMessage(message);
-    if (isReactionMessage) {
+    } else if (isReactionMessage) {
       const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
       log.info(`init reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
       if (state === "created") {
@@ -205,6 +205,73 @@ export class App implements MessageHandler {
         }
       }
       log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+    } else if (isLinkMessage) {
+      const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
+      log.info(`init link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      if (state === "created") {
+        try {
+          await appDB
+            .insertInto("links")
+            .values({
+              // message data
+              messageType: message.data.type,
+              fid: message.data.fid,
+              timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+              network: message.data.network,
+              hash: message.hash,
+              hashScheme: message.hashScheme,
+              signature: message.signature,
+              signatureScheme: message.signatureScheme,
+              signer: message.signer,
+              dataBytes: message.dataBytes ? message.dataBytes : null,
+              // links data below
+              targetFid: message.data.linkBody?.targetFid || null,
+              displayTimestamp: farcasterTimeToDate(message.data.linkBody?.displayTimestamp) || null,
+              type: message.data.linkBody?.type || "",
+            })
+            .onConflict((oc) =>
+              oc
+                .columns(["fid", "targetFid", "type"])
+                .doUpdateSet({
+                  hash: message.hash,
+                  timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+                  displayTimestamp: farcasterTimeToDate(message.data.linkBody?.displayTimestamp),
+                })
+                .where(({ eb, ref, or, and }) =>
+                  or([
+                    // CRDT conflict rule 1: discard message with lower timestamp
+                    eb("links.timestamp", "<", ref("excluded.timestamp")),
+                    // CRDT conflict rule 2: does not apply since these are always two ReactionAdd messages
+                    // CRDT conflict rule 3: if timestamps and message type are identical, discard message with lower hash
+                    and([
+                      eb("links.timestamp", "=", ref("excluded.timestamp")),
+                      eb("links.hash", "<", ref("excluded.hash")),
+                    ]),
+                  ]),
+                ),
+            )
+            .execute();
+        } catch (e) {
+          log.error(`Failed to insert link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+          log.error(e);
+        }
+      } else if (state === "deleted") {
+        // todo-rahul: confirm on the logic to remove a link
+        try {
+          await appDB
+            .updateTable("links")
+            .where("fid", "=", message.data.fid)
+            .where("type", "=", message.data.linkBody?.type)
+            .$call((qb) => (message.data.linkBody?.targetFid ? qb.where("targetFid", "=", message.data.linkBody?.targetFid) : qb))
+            .set({ updatedAt: new Date(), deletedAt: new Date() })
+            .execute();
+        } catch (e) {
+          log.error(`Failed to delete link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()
+            } (type ${message.data?.type})`);
+          log.error(e);
+        }
+      }
+      log.info(`proc link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
     }
   }
 

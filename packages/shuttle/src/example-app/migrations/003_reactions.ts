@@ -1,4 +1,4 @@
-import { Kysely, sql, JSONColumnType } from "kysely";
+import { Kysely, sql } from "kysely";
 
 // biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
 export const up = async (db: Kysely<any>) => {

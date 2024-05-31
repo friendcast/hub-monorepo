@@ -110,9 +110,30 @@ export type ReactionsRow = {
   targetUrl: string | null;
 }
 
+export type LinksRow = {
+  id: Generated<string>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+  deletedAt: Date | null;
+  messageType: MessageType;
+  fid: Fid;
+  timestamp: Date;
+  network: Number;
+  hash: Uint8Array;
+  hashScheme: Number;
+  signature: Uint8Array;
+  signatureScheme: Number;
+  signer: Uint8Array;
+  dataBytes: Uint8Array | null;
+  targetFid: Fid | null;
+  displayTimestamp: Date | null;
+  type: string;
+};
+
 export interface Tables extends HubTables {
   casts: CastRow;
   reactions: ReactionsRow;
+  links: LinksRow;
 }
 
 export type AppDb = Kysely<Tables>;
