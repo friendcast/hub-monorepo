@@ -36,6 +36,7 @@ import { ok, Result } from "neverthrow";
 import { getQueue, getWorker } from "./worker";
 import { Queue } from "bullmq";
 import { farcasterTimeToDate } from "../utils";
+import { GetRootParentData } from "./casts";
 
 const hubId = "shuttle";
 
@@ -108,9 +109,12 @@ export class App implements MessageHandler {
       log.info(`init cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
       if (state === "created") {
         try {
-          // todo-rahul: try to get root parent url data here
-          let rootParentHash = null;
-          let rootParentUrl = null;
+          let rootParentHash: Uint8Array | null = null;
+          let rootParentUrl: string | null = null;
+          if (message.data.castAddBody?.parentCastId) {
+            let [rootParentHash, rootParentUrl] = await GetRootParentData(message.data.castAddBody?.parentCastId.hash, appDB);
+            log.info("parent cast root details", rootParentHash, rootParentUrl)
+          }
           await appDB
             .insertInto("casts")
             .values({
@@ -133,8 +137,8 @@ export class App implements MessageHandler {
               parentUrl: message.data.castAddBody?.parentUrl || null,
               parentFid: message.data.castAddBody?.parentCastId?.fid || null,
               parentHash: message.data.castAddBody?.parentCastId?.hash || null,
-              rootParentHash,
-              rootParentUrl,
+              rootParentHash: rootParentHash || message.data.castAddBody?.parentCastId?.hash || null,
+              rootParentUrl: rootParentUrl || message.data.castAddBody?.parentUrl || null,
             })
             .execute();
         } catch (e) {
