@@ -290,7 +290,7 @@ export class App implements MessageHandler {
           })
           .onConflict((oc) =>
             oc
-              .constraint("user_data_fid_type_unique")
+              .columns(["fid", "type"])
               .doUpdateSet(({ ref }) => ({
                 hash: ref("excluded.hash"),
                 timestamp: ref("excluded.timestamp"),
