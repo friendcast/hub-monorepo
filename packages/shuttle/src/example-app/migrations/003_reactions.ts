@@ -32,6 +32,6 @@ export const up = async (db: Kysely<any>) => {
     .createIndex("reactions_fid_timestamp_index")
     .on("reactions")
     .columns(["fid", "timestamp"])
-    .where(sql.ref("deleted_at"), "is", null) // Only index active (non-deleted) casts
+    .where(sql.ref("deleted_at"), "is", null)
     .execute();
 };
