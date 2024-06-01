@@ -15,6 +15,7 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("timestamp", "timestamptz", (col) => col.notNull())
     .addColumn("network", sql`smallint`, (col) => col.notNull())
     .addColumn("hash", "bytea", (col) => col.notNull())
+    .addColumn("hashHex", "text", (col) => col.notNull())
     .addColumn("hashScheme", sql`smallint`, (col) => col.notNull())
     .addColumn("signature", "bytea", (col) => col.notNull())
     .addColumn("signatureScheme", sql`smallint`, (col) => col.notNull())

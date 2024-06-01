@@ -126,6 +126,7 @@ export class App implements MessageHandler {
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
               hash: message.hash,
+              hashHex: bytesToHexString(message.hash)._unsafeUnwrap(),
               hashScheme: message.hashScheme,
               signature: message.signature,
               signatureScheme: message.signatureScheme,
@@ -183,6 +184,7 @@ export class App implements MessageHandler {
               type: message.data.reactionBody?.type,
               targetCastFid: message.data.reactionBody?.targetCastId?.fid || null,
               targetCastHash: message.data.reactionBody?.targetCastId?.hash || null,
+              targetCastHashHex: message.data.reactionBody?.targetCastId?.hash ? bytesToHexString(message.data.reactionBody?.targetCastId?.hash)._unsafeUnwrap() : null,
               targetUrl: message.data.reactionBody?.targetUrl || null,
             })
             .execute();

@@ -73,6 +73,7 @@ export type CastRow = {
   timestamp: Date;
   network: Number;
   hash: Uint8Array;
+  hashHex: string;
   hashScheme: Number;
   signature: Uint8Array;
   signatureScheme: Number;
@@ -107,6 +108,7 @@ export type ReactionsRow = {
   type: ReactionType,
   targetCastFid: Number | null;
   targetCastHash: Uint8Array | null;
+  targetCastHashHex: string | null;
   targetUrl: string | null;
 }
 

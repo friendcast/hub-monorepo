@@ -25,6 +25,7 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("targetUrl", "text")
     .addColumn("targetCastFid", "bigint")
     .addColumn("targetCastHash", "bytea")
+    .addColumn("targetCastHashHex", "text")
     .execute();
 
   await db.schema
