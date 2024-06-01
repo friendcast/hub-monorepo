@@ -19,7 +19,7 @@ import {
   MessageType,
   ReactionType,
   // SignatureScheme,
-  // UserDataType,
+  UserDataType,
   // UserNameType,
   CastId
 } from "@farcaster/hub-nodejs";
@@ -132,10 +132,30 @@ export type LinksRow = {
   type: string;
 };
 
+export type UserDataRow = {
+  id: Generated<string>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+  deletedAt: Date | null;
+  messageType: MessageType;
+  fid: Fid;
+  timestamp: Date;
+  network: Number;
+  hash: Uint8Array;
+  hashScheme: Number;
+  signature: Uint8Array;
+  signatureScheme: Number;
+  signer: Uint8Array;
+  dataBytes: Uint8Array | null;
+  type: UserDataType;
+  value: string;
+};
+
 export interface Tables extends HubTables {
   casts: CastRow;
   reactions: ReactionsRow;
   links: LinksRow;
+  userData: UserDataRow;
 }
 
 export type AppDb = Kysely<Tables>;
