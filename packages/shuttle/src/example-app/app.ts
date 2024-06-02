@@ -141,7 +141,9 @@ export class App implements MessageHandler {
               parentUrl: message.data.castAddBody?.parentUrl || null,
               parentFid: message.data.castAddBody?.parentCastId?.fid || null,
               parentHash: message.data.castAddBody?.parentCastId?.hash || null,
+              parentHashHex: message.data.castAddBody?.parentCastId?.hash ? bytesToHexString(message.data.castAddBody?.parentCastId?.hash)._unsafeUnwrap() : null,
               rootParentHash: rootParentHash || message.data.castAddBody?.parentCastId?.hash || null,
+              rootParentHashHex: rootParentHash ? bytesToHexString(rootParentHash)._unsafeUnwrap() : message.data.castAddBody?.parentCastId?.hash ? bytesToHexString(message.data.castAddBody?.parentCastId?.hash)._unsafeUnwrap() : null,
               rootParentUrl: rootParentUrl || message.data.castAddBody?.parentUrl || null,
             })
             .execute();

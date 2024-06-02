@@ -29,7 +29,9 @@ export const up = async (db: Kysely<any>) => {
     .addColumn("parentUrl", "text")
     .addColumn("parentFid", "bigint")
     .addColumn("parentHash", "bytea")
+    .addColumn("parentHashHex", "text")
     .addColumn("rootParentHash", "bytea")
+    .addColumn("rootParentHashHex", "text")
     .addColumn("rootParentUrl", "text")
     .addUniqueConstraint("casts_hash_unique", ["hash"])
     .$call((qb) =>
@@ -49,6 +51,20 @@ export const up = async (db: Kysely<any>) => {
     .on("casts")
     .columns(["rootParentHash"])
     .where("rootParentHash", "is not", null)
+    .execute();
+
+  await db.schema
+    .createIndex("casts_root_parent_hash_hex_index")
+    .on("casts")
+    .columns(["rootParentHashHex"])
+    .where("rootParentHashHex", "is not", null)
+    .execute();
+
+  await db.schema
+    .createIndex("casts_parent_hash_hex_index")
+    .on("casts")
+    .columns(["parentHashHex"])
+    .where("parentHashHex", "is not", null)
     .execute();
 
   await db.schema

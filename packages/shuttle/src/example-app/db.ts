@@ -86,7 +86,9 @@ export type CastRow = {
   parentUrl: string | null;
   parentFid: Number | null;
   parentHash: Uint8Array | null;
+  parentHashHex: string | null;
   rootParentHash: Uint8Array | null;
+  rootParentHashHex: string | null;
   rootParentUrl: string | null;
 };
 
