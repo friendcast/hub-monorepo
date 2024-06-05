@@ -92,7 +92,7 @@ export type CastRow = {
   rootParentUrl: string | null;
 };
 
-export type ReactionsRow = {
+export type ReactionRow = {
   id: Generated<string>;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
@@ -114,7 +114,7 @@ export type ReactionsRow = {
   targetUrl: string | null;
 }
 
-export type LinksRow = {
+export type LinkRow = {
   id: Generated<string>;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
@@ -153,11 +153,37 @@ export type UserDataRow = {
   value: string;
 };
 
+export type VerificationRow = {
+  id: Generated<string>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+  deletedAt: Date | null;
+  messageType: MessageType;
+  fid: Fid;
+  timestamp: Date;
+  network: Number;
+  hash: Uint8Array;
+  hashScheme: Number;
+  signature: Uint8Array;
+  signatureScheme: Number;
+  signer: Uint8Array;
+  dataBytes: Uint8Array | null;
+  verificationType: Number;
+  signerAddress: Uint8Array;
+  signerAddressHex: string;
+  claimSignature: Uint8Array;
+  claimSignatureHex: string;
+  blockHash: Uint8Array;
+  chainId: Number;
+  protocol: Number;
+};
+
 export interface Tables extends HubTables {
   casts: CastRow;
-  reactions: ReactionsRow;
-  links: LinksRow;
+  reactions: ReactionRow;
+  links: LinkRow;
   userData: UserDataRow;
+  verifications: VerificationRow,
 }
 
 export type AppDb = Kysely<Tables>;

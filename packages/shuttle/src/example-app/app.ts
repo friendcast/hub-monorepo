@@ -14,7 +14,20 @@ import {
   MessageState,
 } from "../index"; // If you want to use this as a standalone app, replace this import with "@farcaster/shuttle"
 import { AppDb, migrateToLatest, Tables } from "./db";
-import { bytesToHexString, HubEvent, isCastAddMessage, isCastRemoveMessage, Message, isReactionAddMessage, isReactionRemoveMessage, isLinkAddMessage, isLinkRemoveMessage, isUserDataAddData, isUserDataAddMessage } from "@farcaster/hub-nodejs";
+import {
+  bytesToHex,
+  HubEvent,
+  isCastAddMessage,
+  isCastRemoveMessage,
+  Message,
+  isReactionAddMessage,
+  isReactionRemoveMessage,
+  isLinkAddMessage,
+  isLinkRemoveMessage,
+  isUserDataAddMessage,
+  isVerificationAddAddressMessage,
+  isVerificationRemoveMessage,
+} from "@farcaster/hub-nodejs";
 import { log } from "./log";
 import { Command } from "@commander-js/extra-typings";
 import { readFileSync } from "fs";
@@ -36,7 +49,13 @@ import { ok, Result } from "neverthrow";
 import { getQueue, getWorker } from "./worker";
 import { Queue } from "bullmq";
 import { farcasterTimeToDate } from "../utils";
-import { GetRootParentData } from "./casts";
+import {
+  GetRootParentData,
+  GetVerificationData,
+  VerificationAddEthAddressBodyJson,
+  VerificationAddSolAddressBodyJson,
+  bytesToHex,
+} from "./casts";
 
 const hubId = "shuttle";
 
@@ -107,9 +126,10 @@ export class App implements MessageHandler {
     const isReactionMessage = isReactionAddMessage(message) || isReactionRemoveMessage(message);
     const isLinkMessage = isLinkAddMessage(message) || isLinkRemoveMessage(message);
     const isUserDataMessage = isUserDataAddMessage(message);
+    const isVerificationMessage = isVerificationAddAddressMessage(message) || isVerificationRemoveMessage(message);
     const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
     if (isCastMessage) {
-      log.info(`init cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      log.info(`init cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
       try {
         if (state === "created") {
           let rootParentHash: Uint8Array | null = null;
@@ -127,7 +147,7 @@ export class App implements MessageHandler {
               timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
               network: message.data.network,
               hash: message.hash,
-              hashHex: bytesToHexString(message.hash)._unsafeUnwrap(),
+              hashHex: bytesToHex(message.hash),
               hashScheme: message.hashScheme,
               signature: message.signature,
               signatureScheme: message.signatureScheme,
@@ -141,9 +161,9 @@ export class App implements MessageHandler {
               parentUrl: message.data.castAddBody?.parentUrl || null,
               parentFid: message.data.castAddBody?.parentCastId?.fid || null,
               parentHash: message.data.castAddBody?.parentCastId?.hash || null,
-              parentHashHex: message.data.castAddBody?.parentCastId?.hash ? bytesToHexString(message.data.castAddBody?.parentCastId?.hash)._unsafeUnwrap() : null,
+              parentHashHex: message.data.castAddBody?.parentCastId?.hash ? bytesToHex(message.data.castAddBody?.parentCastId?.hash) : null,
               rootParentHash: rootParentHash || message.data.castAddBody?.parentCastId?.hash || null,
-              rootParentHashHex: rootParentHash ? bytesToHexString(rootParentHash)._unsafeUnwrap() : message.data.castAddBody?.parentCastId?.hash ? bytesToHexString(message.data.castAddBody?.parentCastId?.hash)._unsafeUnwrap() : null,
+              rootParentHashHex: rootParentHash ? bytesToHex(rootParentHash) : message.data.castAddBody?.parentCastId?.hash ? bytesToHex(message.data.castAddBody?.parentCastId?.hash) : null,
               rootParentUrl: rootParentUrl || message.data.castAddBody?.parentUrl || null,
             })
             .execute();
@@ -154,13 +174,13 @@ export class App implements MessageHandler {
             .where(sql`hash = ${message.hash}`)
             .execute();
         }
-        log.info(`proc cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.info(`proc cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
       } catch (e) {
-        log.error(`Failed to process cast: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.error(`Failed to process cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
         log.error(e);
       }
     } else if (isReactionMessage) {
-      log.info(`init reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      log.info(`init reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
       try {
         if (state === "created") {
           await appDB
@@ -181,7 +201,7 @@ export class App implements MessageHandler {
               type: message.data.reactionBody?.type,
               targetCastFid: message.data.reactionBody?.targetCastId?.fid || null,
               targetCastHash: message.data.reactionBody?.targetCastId?.hash || null,
-              targetCastHashHex: message.data.reactionBody?.targetCastId?.hash ? bytesToHexString(message.data.reactionBody?.targetCastId?.hash)._unsafeUnwrap() : null,
+              targetCastHashHex: message.data.reactionBody?.targetCastId?.hash ? bytesToHex(message.data.reactionBody?.targetCastId?.hash) : null,
               targetUrl: message.data.reactionBody?.targetUrl || null,
             })
             .execute();
@@ -193,14 +213,14 @@ export class App implements MessageHandler {
             .where(sql`hash = ${message.hash}`)
             .execute();
         }
-        log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
       } catch (e) {
-        log.error(`Failed to process reaction: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.error(`Failed to process reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
         log.error(e);
       }
     } else if (isLinkMessage) {
       try {
-        log.info(`init link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.info(`init link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
         if (state === "created") {
           try {
             await appDB
@@ -245,7 +265,7 @@ export class App implements MessageHandler {
               )
               .execute();
           } catch (e) {
-            log.error(`Failed to insert link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+            log.error(`Failed to insert link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
             log.error(e);
           }
         } else if (state === "deleted") {
@@ -259,18 +279,18 @@ export class App implements MessageHandler {
               .set({ updatedAt: new Date(), deletedAt: new Date() })
               .execute();
           } catch (e) {
-            log.error(`Failed to delete link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()
+            log.error(`Failed to delete link: ${state} ${messageDesc} ${bytesToHex(message.hash)
               } (type ${message.data?.type})`);
             log.error(e);
           }
         }
       } catch (e) {
-        log.error(`Failed to process link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.error(`Failed to process link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
         log.error(e);
       }
-      log.info(`proc link: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      log.info(`proc link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
     } else if (isUserDataMessage) {
-      log.info(`init user data: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+      log.info(`init user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
       try {
         await appDB
           .insertInto("userData")
@@ -311,7 +331,50 @@ export class App implements MessageHandler {
           )
           .execute();
       } catch (e) {
-        log.error(`Failed to process user data: ${state} ${messageDesc} ${bytesToHexString(message.hash)._unsafeUnwrap()} (type ${message.data?.type})`);
+        log.error(`Failed to process user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.error(e);
+      }
+    } else if (isVerificationMessage) {
+      log.info(`init verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
+      try {
+        if (state === "created") {
+          const verificationData = GetVerificationData(message, state);
+          const { address, claimSignature, blockHash } = verificationData as VerificationAddEthAddressBodyJson | VerificationAddSolAddressBodyJson;
+          await appDB
+            .insertInto("verifications")
+            .values({
+              // message data
+              messageType: message.data.type,
+              fid: message.data.fid,
+              timestamp: farcasterTimeToDate(message.data.timestamp) || new Date(),
+              network: message.data.network,
+              hash: message.hash,
+              hashScheme: message.hashScheme,
+              signature: message.signature,
+              signatureScheme: message.signatureScheme,
+              signer: message.signer,
+              dataBytes: message.dataBytes ? message.dataBytes : null,
+              // verifications data below
+              signerAddress: message.data.verificationAddAddressBody?.address,
+              signerAddressHex: address,
+              claimSignature: message.data.verificationAddAddressBody?.claimSignature,
+              claimSignatureHex: claimSignature,
+              blockHash: message.data.verificationAddAddressBody?.blockHash,
+              blockHashHex: blockHash,
+              chainId: message.data.verificationAddAddressBody?.chainId,
+              protocol: message.data.verificationAddAddressBody?.protocol,
+            })
+            .execute();
+        } else if (state === "deleted") {
+          await appDB
+            .updateTable("verifications")
+            .set({ deletedAt: farcasterTimeToDate(message.data.timestamp) || new Date() })
+            .where(sql`hash = ${message.hash}`)
+            .execute();
+        }
+        log.info(`proc verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
+      } catch (e) {
+        log.error(`Failed to process verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
         log.error(e);
       }
     }
@@ -343,7 +406,7 @@ export class App implements MessageHandler {
           await HubEventProcessor.handleMissingMessage(this.db, message, this);
         } else if (prunedInDb || revokedInDb) {
           const messageDesc = prunedInDb ? "pruned" : revokedInDb ? "revoked" : "existing";
-          log.info(`Reconciled ${messageDesc} message ${bytesToHexString(message.hash)._unsafeUnwrap()} `);
+          log.info(`Reconciled ${messageDesc} message ${bytesToHex(message.hash)} `);
         }
       });
     }
