@@ -129,7 +129,7 @@ export class App implements MessageHandler {
     const isVerificationMessage = isVerificationAddAddressMessage(message) || isVerificationRemoveMessage(message);
     const appDB = txn as unknown as AppDb; // Need this to make typescript happy, not clean way to "inherit" table types
     if (isCastMessage) {
-      log.info(`init cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+      log.info(`init cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       try {
         if (state === "created") {
           let rootParentHash: Uint8Array | null = null;
@@ -174,13 +174,13 @@ export class App implements MessageHandler {
             .where(sql`hash = ${message.hash}`)
             .execute();
         }
-        log.info(`proc cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.info(`proc cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       } catch (e) {
-        log.error(`Failed to process cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.error(`Failed to process cast: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         log.error(e);
       }
     } else if (isReactionMessage) {
-      log.info(`init reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+      log.info(`init reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       try {
         if (state === "created") {
           await appDB
@@ -213,14 +213,14 @@ export class App implements MessageHandler {
             .where(sql`hash = ${message.hash}`)
             .execute();
         }
-        log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.info(`proc reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       } catch (e) {
-        log.error(`Failed to process reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.error(`Failed to process reaction: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         log.error(e);
       }
     } else if (isLinkMessage) {
       try {
-        log.info(`init link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.info(`init link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         if (state === "created") {
           try {
             await appDB
@@ -265,7 +265,7 @@ export class App implements MessageHandler {
               )
               .execute();
           } catch (e) {
-            log.error(`Failed to insert link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+            log.error(`Failed to insert link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
             log.error(e);
           }
         } else if (state === "deleted") {
@@ -280,17 +280,17 @@ export class App implements MessageHandler {
               .execute();
           } catch (e) {
             log.error(`Failed to delete link: ${state} ${messageDesc} ${bytesToHex(message.hash)
-              } (type ${message.data?.type})`);
+              } (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
             log.error(e);
           }
         }
       } catch (e) {
-        log.error(`Failed to process link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.error(`Failed to process link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         log.error(e);
       }
-      log.info(`proc link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+      log.info(`proc link: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
     } else if (isUserDataMessage) {
-      log.info(`init user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+      log.info(`init user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       try {
         await appDB
           .insertInto("userData")
@@ -331,11 +331,11 @@ export class App implements MessageHandler {
           )
           .execute();
       } catch (e) {
-        log.error(`Failed to process user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type})`);
+        log.error(`Failed to process user data: ${state} ${messageDesc} ${bytesToHex(message.hash)} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         log.error(e);
       }
     } else if (isVerificationMessage) {
-      log.info(`init verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
+      log.info(`init verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       try {
         if (state === "created") {
           const verificationData = GetVerificationData(message, state);
@@ -372,9 +372,9 @@ export class App implements MessageHandler {
             .where(sql`hash = ${message.hash}`)
             .execute();
         }
-        log.info(`proc verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
+        log.info(`proc verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
       } catch (e) {
-        log.error(`Failed to process verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type})`);
+        log.error(`Failed to process verification: ${state} ${messageDesc} ${"0x" + Buffer.from(message.hash).toString('hex')} (type ${message.data?.type}) (timestamp${farcasterTimeToDate(message.data.timestamp)?.toISOString()})`);
         log.error(e);
       }
     }
